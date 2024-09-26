@@ -20,8 +20,8 @@ const Title = styled.h1`
 
 const CoinList = styled.ul``;
 const Coin = styled.li`
-  background-color: ${(props) => props.theme.accentColor};
-  border-radius: 20px;
+  background-color: ${(props) => props.theme.bgColor};
+  border-radius: 15px;
   margin-bottom: 10px;
   a {
     padding: 20px;
@@ -80,7 +80,12 @@ function Coins() {
         <CoinList>
           {coins.map((coin) => (
             <Coin key={coin.id}>
-              <Link to={`/${coin.id}`}>
+              <Link
+                to={{
+                  pathname: `/${coin.id}`,
+                  state: { name: coin.name },
+                }}
+              >
                 <Img
                   src={`https://cryptoicon-api.pages.dev/api/icon/${coin.symbol.toLowerCase()}`}
                 />
