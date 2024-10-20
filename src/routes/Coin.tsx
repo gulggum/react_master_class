@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
   Switch,
   Route,
@@ -10,7 +9,9 @@ import {
 import styled from "styled-components";
 import Chart from "./Chart";
 import Price from "./Price";
-import "../api";
+import { useQuery } from "react-query";
+import { fetchCoinInfo, fetchCoinTickers } from "../api";
+import Helmet from "react-helmet";
 
 const Container = styled.div`
   padding: 20px;
@@ -19,12 +20,18 @@ const Container = styled.div`
 `;
 const Header = styled.header`
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   padding: 20px;
 `;
 const Title = styled.h1`
   font-size: 30px;
+  color: ${(props) => props.theme.accentColor};
+`;
+
+const BackBtn = styled.div`
+  width: 100px;
+  font-size: 20px;
   color: ${(props) => props.theme.accentColor};
 `;
 
@@ -38,7 +45,7 @@ const Loader = styled.span`
 const Overview = styled.div`
   display: flex;
   justify-content: space-between;
-  background-color: ${(props) => props.theme.bgColor};
+  background-color: ${(props) => props.theme.listColor};
   padding: 10px 20px;
   border-radius: 15px;
   text-transform: uppercase;
@@ -59,6 +66,7 @@ const OverviewItem = styled.div`
 const Description = styled.p`
   padding: 20px 0px;
   line-height: 20px;
+  color: ${(props) => props.theme.textColor};
 `;
 
 const Tab = styled.div`
@@ -67,7 +75,7 @@ const Tab = styled.div`
   margin-top: 20px;
 `;
 const TapText = styled.span<{ isActive: boolean }>`
-  background-color: ${(props) => props.theme.bgColor};
+  background-color: ${(props) => props.theme.listColor};
   width: 49%;
   border-radius: 15px;
   text-align: center;
@@ -165,61 +173,63 @@ interface PriceData {
 
 function Coin() {
   const { coinId } = useParams<RouteParams>();
-  const [loading, setLoading] = useState(true);
   const { state } = useLocation<RouteState>();
-  const [info, setInfo] = useState<InfoData>();
-  const [priceInfo, setPriceInfo] = useState<PriceData>();
   const chartMatch = useRouteMatch("/:coinId/chart");
   const priceMatch = useRouteMatch("/:coinId/price");
 
-  useEffect(() => {
-    (async () => {
-      const infoData = await (
-        await fetch(`https://api.coinpaprika.com/v1/coins/${coinId}`)
-      ).json();
-      const priceData = await (
-        await fetch(`https://api.coinpaprika.com/v1/tickers/${coinId}`)
-      ).json();
-      setInfo(infoData);
-      setPriceInfo(priceData);
-      setLoading(false);
-    })();
-  }, []);
-
-  console.log(info);
-  console.log(priceInfo);
-
+  const { isLoading: infoLoading, data: infoData } = useQuery<InfoData>(
+    ["info", coinId],
+    () => fetchCoinInfo(coinId)
+  );
+  const { isLoading: tickersLoading, data: tickersData } = useQuery<PriceData>(
+    ["tickers", coinId],
+    () => fetchCoinTickers(coinId),
+    { refetchInterval: 5000 }
+  );
+  const loading = infoLoading || tickersLoading;
+  //ㄴ> 통합 loading
   return (
     <Container>
+      <Helmet>
+        <title>
+          {state?.name ? state.name : loading ? "Loading..." : infoData?.name}
+        </title>
+      </Helmet>
       <Header>
-        <Title>{state?.name || "loading..."}</Title>
+        <BackBtn>
+          <Link to={"/"}>Back</Link>
+        </BackBtn>
+        <Title>
+          {state?.name ? state.name : loading ? "Loading..." : infoData?.name}
+        </Title>
+        <BackBtn></BackBtn>
       </Header>
       {loading ? <Loader>Loading...</Loader> : null}
       <Overview>
         <OverviewItem>
           <span>rank:</span>
-          <span>{info?.rank}</span>
+          <span>{infoData?.rank}</span>
         </OverviewItem>
         <OverviewItem>
           <span>symbol:</span>
-          <span>${info?.symbol}</span>
+          <span>{infoData?.symbol}</span>
         </OverviewItem>
         <OverviewItem>
-          <span>open source:</span>
-          <span>{info?.open_source}</span>
+          <span>Price:</span>
+          <span>${tickersData?.quotes.USD.price.toFixed(3)}</span>
         </OverviewItem>
       </Overview>
-      <Description>{info?.description}</Description>
+      <Description>{infoData?.description}</Description>
 
       <Overview>
         <OverviewItem>
           <span>total suply:</span>
-          <span>{priceInfo?.total_supply.toLocaleString()}</span>
+          <span>{tickersData?.total_supply.toLocaleString()}</span>
         </OverviewItem>
 
         <OverviewItem>
           <span>max supply:</span>
-          <span>{priceInfo?.max_supply.toLocaleString()}</span>
+          <span>{tickersData?.max_supply.toLocaleString()}</span>
         </OverviewItem>
       </Overview>
       <Tab>
@@ -233,10 +243,10 @@ function Coin() {
 
       <Switch>
         <Route path={`/:coinId/chart`}>
-          <Chart />
+          <Chart coinId={coinId} />
         </Route>
         <Route path={`/:coinId/price`}>
-          <Price />
+          <Price coinId={coinId} />
         </Route>
       </Switch>
     </Container>

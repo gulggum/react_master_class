@@ -1,6 +1,10 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import styled from "styled-components";
+import { fetchCoins } from "../api";
+import { useQuery } from "react-query";
+import { Helmet } from "react-helmet";
+import { useSetRecoilState, useRecoilValue } from "recoil";
+import { isDarkAtom } from "../atoms";
 
 const Container = styled.div`
   padding: 20px;
@@ -14,13 +18,34 @@ const Header = styled.header`
   padding: 20px;
 `;
 const Title = styled.h1`
-  font-size: 30px;
+  font-size: 40px;
   color: ${(props) => props.theme.accentColor};
+`;
+const ToggleLine = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 0px 30px 0px;
+  span:first-child {
+    font-size: 18px;
+    display: block;
+    margin-left: 12px;
+  }
+`;
+
+const Toggle = styled.span`
+  width: 36px;
+  height: 20px;
+  cursor: pointer;
+  font-size: 20px;
+  margin-left: 5px;
+  display: block;
+  margin-top: 3px;
 `;
 
 const CoinList = styled.ul``;
 const Coin = styled.li`
-  background-color: ${(props) => props.theme.bgColor};
+  background-color: ${(props) => props.theme.listColor};
   border-radius: 15px;
   margin-bottom: 10px;
   a {
@@ -30,7 +55,7 @@ const Coin = styled.li`
     align-items: center;
   }
   &:hover {
-    color: white;
+    color: ${(props) => props.theme.accentColor};
   }
 `;
 
@@ -47,7 +72,7 @@ const Img = styled.img`
   margin-right: 10px;
 `;
 
-interface CoinInterface {
+interface ICoin {
   id: string;
   name: string;
   symbol: string;
@@ -58,27 +83,27 @@ interface CoinInterface {
 }
 
 function Coins() {
-  const [coins, setCoins] = useState<CoinInterface[]>([]);
-  const [loading, setLoading] = useState(true);
-  const getCoins = async () => {
-    const response = await fetch("https://api.coinpaprika.com/v1/coins");
-    const json = await response.json();
-    setCoins(json.slice(0, 100));
-    setLoading(false);
-  };
-  useEffect(() => {
-    getCoins();
-  }, []);
+  const setDarkAtom = useSetRecoilState(isDarkAtom);
+  const toggleDarkAtom = () => setDarkAtom((current) => !current);
+  const { isLoading, data } = useQuery<ICoin[]>("allCoins", fetchCoins);
+  const isDark = useRecoilValue(isDarkAtom);
   return (
     <Container>
+      <Helmet>
+        <title>Coins</title>
+      </Helmet>
       <Header>
         <Title>Coins</Title>
       </Header>
-      {loading ? (
+      <ToggleLine>
+        <span>{isDark ? "Dark" : "Light"}</span>
+        <Toggle onClick={toggleDarkAtom}>{isDark ? "🌙" : "☀️"}</Toggle>
+      </ToggleLine>
+      {isLoading ? (
         <Loader>Loading...</Loader>
       ) : (
         <CoinList>
-          {coins.map((coin) => (
+          {data?.slice(0, 100).map((coin) => (
             <Coin key={coin.id}>
               <Link
                 to={{
